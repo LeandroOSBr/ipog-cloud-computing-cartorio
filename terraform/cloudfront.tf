@@ -76,7 +76,7 @@ resource "aws_cloudfront_distribution" "api" {
 
     # Desativa cache na API e encaminha todos os headers, EXCETO o 'Host' para evitar erro 403 no API Gateway
     cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
-    origin_request_policy_id = "b689b0a8-53d0-40b8-8a0a-3450e5539059" # Managed-AllViewerExceptHostHeader
+    origin_request_policy_id = "b689b0a8-53d0-40ab-baf2-68738e2966ac" # Managed-AllViewerExceptHostHeader
   }
 
   restrictions {
