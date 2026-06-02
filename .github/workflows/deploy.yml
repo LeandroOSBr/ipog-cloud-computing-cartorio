@@ -32,7 +32,7 @@ jobs:
 
       - name: Install Lambda Dependencies
         run: |
-          pip install pypdf -t src/backend/process_pdf
+          pip install pypdf reportlab -t src/backend/process_pdf
           find src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
         working-directory: .
 
@@ -81,7 +81,7 @@ jobs:
 
       - name: Install Lambda Dependencies
         run: |
-          pip install pypdf -t src/backend/process_pdf
+          pip install pypdf reportlab -t src/backend/process_pdf
           find src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
         working-directory: .
 

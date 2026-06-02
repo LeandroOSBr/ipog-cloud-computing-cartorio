@@ -5,12 +5,57 @@ import uuid
 from datetime import datetime
 import boto3
 
-# Importa pypdf (será empacotada na pipeline)
+# Importa pypdf e reportlab (serão empacotadas na pipeline)
 try:
     from pypdf import PdfReader, PdfWriter
-    HAS_PYPDF = True
-except ImportError:
-    HAS_PYPDF = False
+    from reportlab.pdfgen import canvas
+    from reportlab.lib import colors
+    HAS_LIBS = True
+except ImportError as e:
+    print(f"Erro ao importar bibliotecas: {str(e)}")
+    HAS_LIBS = False
+
+def create_stamp_pdf(stamp_path, width, height, registro_id, data_registro, pdf_hash):
+    c = canvas.Canvas(stamp_path, pagesize=(width, height))
+    
+    # Dimensões do carimbo
+    stamp_w = 190
+    stamp_h = 75
+    margin = 35
+    
+    # Canto inferior direito
+    x = width - stamp_w - margin
+    y = margin
+    
+    # Retângulo externo
+    c.setStrokeColor(colors.HexColor("#10b981")) # Emerald
+    c.setLineWidth(1.5)
+    c.roundRect(x, y, stamp_w, stamp_h, 4, stroke=1, fill=0)
+    
+    # Cabeçalho do Carimbo (Fundo Verde)
+    c.setFillColor(colors.HexColor("#10b981"))
+    c.rect(x, y + stamp_h - 18, stamp_w, 18, fill=1, stroke=0)
+    
+    # Texto do Cabeçalho
+    c.setFillColor(colors.white)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawCentredString(x + (stamp_w / 2), y + stamp_h - 13, "REGISTRO DIGITAL NOTARIAL")
+    
+    # Texto Interno do Carimbo
+    c.setFillColor(colors.HexColor("#1e293b"))
+    c.setFont("Helvetica-Bold", 7)
+    c.drawString(x + 8, y + 43, "CARTÓRIO DIGITAL AWS")
+    
+    c.setFont("Helvetica", 6)
+    c.drawString(x + 8, y + 33, f"ID: {registro_id[:22]}")
+    c.drawString(x + 8, y + 24, f"Data: {data_registro}")
+    c.drawString(x + 8, y + 15, f"Hash: {pdf_hash[:22]}")
+    
+    c.setFont("Helvetica-Oblique", 5.5)
+    c.setFillColor(colors.HexColor("#475569"))
+    c.drawString(x + 8, y + 6, "Conformidade Provimento CNJ 213/2026")
+    
+    c.save()
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sns_client = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -52,17 +97,31 @@ def lambda_handler(event, context):
             registro_id = str(uuid.uuid4()).upper()
             data_registro = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
             
-            # 3. Adiciona metadados no PDF (Simulação do Selo Digital / Provimento 213)
-            if HAS_PYPDF:
+            # 3. Adiciona carimbo visual e metadados no PDF (Selo Digital / Provimento 213)
+            if HAS_LIBS:
+                tmp_stamp_path = f"/tmp/stamp_{uuid.uuid4()}.pdf"
                 try:
                     reader = PdfReader(tmp_download_path)
                     writer = PdfWriter()
                     
-                    # Copia todas as páginas
+                    # Obtém dimensões da primeira página para criar o carimbo na proporção correta
                     if len(reader.pages) > 0:
+                        first_page = reader.pages[0]
+                        width = float(first_page.mediabox.width)
+                        height = float(first_page.mediabox.height)
+                        
+                        # Gera o PDF temporário contendo apenas o carimbo visual
+                        create_stamp_pdf(tmp_stamp_path, width, height, registro_id, data_registro, pdf_hash)
+                        
+                        # Carrega o carimbo
+                        stamp_reader = PdfReader(tmp_stamp_path)
+                        stamp_page = stamp_reader.pages[0]
+                        
+                        # Copia as páginas mesclando o carimbo em cada uma delas
                         for page in reader.pages:
+                            page.merge_page(stamp_page)
                             writer.add_page(page)
-                            
+                    
                     # Adiciona metadados de autenticidade no PDF
                     writer.add_metadata({
                         "/Title": f"Documento Registrado - {raw_key}",
@@ -71,20 +130,22 @@ def lambda_handler(event, context):
                         "/Keywords": f"Hash:{pdf_hash}, Registro:{registro_id}, Data:{data_registro}",
                         "/Creator": "AWS Lambda PDF Processor",
                         "/Producer": "AWS Lambda - Antigravity Agent",
-                        # Campo customizado de certificação
-                        "/Certification": "Autenticado e Arquivado de forma imutavel nos termos do Provimento CNJ 213/2026"
+                        "/Certification": "Autenticado e Arquivado com carimbo visual nos termos do Provimento CNJ 213/2026"
                     })
                     
                     with open(tmp_processed_path, "wb") as f_out:
                         writer.write(f_out)
                         
-                    print("Metadados do PDF injetados com sucesso.")
+                    print("Carimbo visual e metadados injetados com sucesso no PDF.")
                 except Exception as pdf_err:
-                    print(f"Erro ao injetar metadados no PDF (usando arquivo original): {str(pdf_err)}")
-                    # Em caso de erro na biblioteca PDF, prossegue com o arquivo original
+                    print(f"Erro ao injetar carimbo/metadados no PDF (usando arquivo original): {str(pdf_err)}")
                     tmp_processed_path = tmp_download_path
+                finally:
+                    # Limpa o arquivo temporário do carimbo
+                    if os.path.exists(tmp_stamp_path):
+                        os.remove(tmp_stamp_path)
             else:
-                print("Aviso: pypdf não disponível. Usando arquivo original de fallback.")
+                print("Aviso: Bibliotecas pypdf/reportlab não disponíveis. Usando arquivo original de fallback.")
                 tmp_processed_path = tmp_download_path
             
             # 4. Define o novo nome do arquivo processado
