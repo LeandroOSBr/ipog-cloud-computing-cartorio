@@ -1,6 +1,6 @@
 output "api_endpoint" {
-  description = "Endpoint da API Gateway HTTP"
-  value       = aws_apigatewayv2_stage.default_stage.invoke_url
+  description = "Endpoint da API Gateway HTTP (através do CloudFront + WAF)"
+  value       = "https://${aws_cloudfront_distribution.api.domain_name}"
 }
 
 output "s3_frontend_bucket_name" {
@@ -9,8 +9,8 @@ output "s3_frontend_bucket_name" {
 }
 
 output "s3_frontend_website_url" {
-  description = "URL pública para acessar a aplicação Web"
-  value       = "http://${aws_s3_bucket_website_configuration.frontend_website.website_endpoint}"
+  description = "URL pública para acessar a aplicação Web (através do CloudFront + WAF)"
+  value       = "https://${aws_cloudfront_distribution.frontend.domain_name}"
 }
 
 output "s3_raw_bucket_name" {
