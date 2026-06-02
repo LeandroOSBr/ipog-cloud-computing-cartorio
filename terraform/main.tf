@@ -14,6 +14,14 @@ terraform {
       version = "~> 2.0"
     }
   }
+
+  # Configuração de Backend Remoto para persistência do estado no GitHub Actions
+  # Para ativar, crie um bucket S3 manualmente na AWS e descomente o bloco abaixo:
+  # backend "s3" {
+  #   bucket = "nome-do-seu-bucket-de-tfstate-aqui"
+  #   key    = "cartorio-digital/terraform.tfstate"
+  #   region = "us-east-1"
+  # }
 }
 
 provider "aws" {
