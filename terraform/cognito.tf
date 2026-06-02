@@ -19,7 +19,7 @@ resource "aws_cognito_user_pool" "pool" {
 
   # Configuração de MFA opcional (TOTP - Authenticator App)
   mfa_configuration = "OPTIONAL"
-  
+
   software_token_mfa_configuration {
     enabled = true
   }
