@@ -750,3 +750,227 @@ header {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
 }
+
+/* ==============================================================================
+   4. Estilos de Autenticação (Login / Registro / MFA)
+   ============================================================================== */
+
+/* Overlay de tela inteira para login */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(9, 13, 22, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999; /* Fica acima de tudo */
+    transition: opacity 0.5s ease;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    padding: 2.5rem;
+    border-radius: 20px;
+    background: rgba(17, 24, 39, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+    animation: scaleIn 0.3s ease-out;
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.auth-header .logo-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.auth-header h2 {
+    font-size: 1.8rem;
+    font-weight: 800;
+}
+
+.auth-header h2 span {
+    font-weight: 300;
+    color: var(--color-primary);
+}
+
+.auth-header p {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+/* Seções de autenticação alternáveis */
+.auth-section {
+    display: none;
+}
+
+.auth-section.active {
+    display: block;
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Inputs de texto customizados */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.input-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--color-text-main);
+    font-size: 0.95rem;
+    transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.btn-full {
+    width: 100%;
+    justify-content: center;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+}
+
+.auth-switch {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin-top: 1.25rem;
+}
+
+.auth-switch a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.auth-switch a:hover {
+    color: var(--color-text-highlight);
+    text-decoration: underline;
+}
+
+.confirm-notice {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* Erros de Login/Autenticação */
+.auth-error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #fca5a5;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    text-align: center;
+    margin-top: 1.25rem;
+    animation: slideDown 0.3s ease-out;
+}
+
+/* Estilização específica do input de código */
+.text-center {
+    text-align: center;
+}
+
+.text-large {
+    font-size: 1.5rem !important;
+    letter-spacing: 0.5rem;
+    padding-left: 1.5rem !important;
+}
+
+/* Barra do Usuário no Header */
+.user-profile-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-card);
+    border-radius: 12px;
+    padding: 0.5rem 1rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+}
+
+.user-info i {
+    color: var(--color-primary);
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--color-danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+    background: var(--color-danger);
+    color: var(--bg-main);
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Configuração de MFA */
+.mfa-step {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin-bottom: 1.25rem;
+}
+
+.mfa-step strong {
+    color: var(--color-primary);
+}
+
+.mfa-secret-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin-top: 0.5rem;
+}
+
+#mfa-secret-key {
+    font-size: 0.9rem;
+    letter-spacing: 0.05rem;
+}
+

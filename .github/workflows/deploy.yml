@@ -107,6 +107,11 @@ jobs:
         run: |
           API_ENDPOINT=$(terraform output -raw api_endpoint)
           FRONTEND_BUCKET=$(terraform output -raw s3_frontend_bucket_name)
-          echo "{\"api_base_url\": \"$API_ENDPOINT\"}" > ../src/frontend/config.json
+          COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
+          COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
+          
+          # Escreve o arquivo de configuração contendo a API e parâmetros do Cognito
+          echo "{\"api_base_url\": \"$API_ENDPOINT\", \"cognito_user_pool_id\": \"$COGNITO_USER_POOL_ID\", \"cognito_client_id\": \"$COGNITO_CLIENT_ID\", \"aws_region\": \"us-east-1\"}" > ../src/frontend/config.json
+          
           aws s3 sync ../src/frontend/ s3://$FRONTEND_BUCKET/ --delete
         working-directory: ./terraform

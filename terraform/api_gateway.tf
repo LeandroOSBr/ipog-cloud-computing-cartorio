@@ -46,21 +46,38 @@ resource "aws_apigatewayv2_integration" "list_integration" {
 }
 
 # ==============================================================================
-# 3. Rotas da API
+# 3. Autorizador e Rotas da API
 # ==============================================================================
 
-# Rota POST /presigned-url
-resource "aws_apigatewayv2_route" "presigned_route" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "POST /presigned-url"
-  target    = "integrations/${aws_apigatewayv2_integration.presigned_integration.id}"
+# Autorizador JWT integrado com o Amazon Cognito
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id           = aws_apigatewayv2_api.http_api.id
+  name             = "cognito-jwt-authorizer"
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.pool.endpoint}"
+  }
 }
 
-# Rota GET /files
+# Rota POST /presigned-url (Protegida por JWT)
+resource "aws_apigatewayv2_route" "presigned_route" {
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "POST /presigned-url"
+  target             = "integrations/${aws_apigatewayv2_integration.presigned_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# Rota GET /files (Protegida por JWT)
 resource "aws_apigatewayv2_route" "list_route" {
-  api_id    = aws_apigatewayv2_api.http_api.id
-  route_key = "GET /files"
-  target    = "integrations/${aws_apigatewayv2_integration.list_integration.id}"
+  api_id             = aws_apigatewayv2_api.http_api.id
+  route_key          = "GET /files"
+  target             = "integrations/${aws_apigatewayv2_integration.list_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # ==============================================================================

@@ -1,8 +1,13 @@
-// Configurações Globais
+// Configurações Globais de API e Autenticação
 let API_BASE_URL = "";
+let userPool = null;
+let cognitoUser = null;
+let idToken = "";
 let isConfigured = false;
 
-// Elementos da DOM
+// ==============================================================================
+// 1. Elementos da DOM - Interface Principal
+// ==============================================================================
 const uploadZone = document.getElementById("upload-zone");
 const fileInput = document.getElementById("file-input");
 const progressContainer = document.getElementById("progress-container");
@@ -20,7 +25,7 @@ const countImultavel = document.getElementById("count-imultavel");
 const tbodyRaw = document.getElementById("tbody-raw");
 const tbodyImultavel = document.getElementById("tbody-imultavel");
 
-// Modal Elements
+// Modal de Detalhes de Registro
 const complianceModal = document.getElementById("compliance-modal");
 const closeModal = document.getElementById("close-modal");
 const btnCloseModalFooter = document.getElementById("btn-close-modal-footer");
@@ -32,7 +37,56 @@ const detailDate = document.getElementById("detail-date");
 const detailLockMode = document.getElementById("detail-lock-mode");
 const detailLockDate = document.getElementById("detail-lock-date");
 
-// 1. Carregar Configuração
+// ==============================================================================
+// 2. Elementos da DOM - Autenticação & MFA
+// ==============================================================================
+const authOverlay = document.getElementById("auth-overlay");
+const authErrorMsg = document.getElementById("auth-error-msg");
+
+// Seções
+const secLogin = document.getElementById("sec-login");
+const secRegister = document.getElementById("sec-register");
+const secConfirm = document.getElementById("sec-confirm");
+const secMfaChallenge = document.getElementById("sec-mfa-challenge");
+
+// Switchees
+const switchToRegister = document.getElementById("switch-to-register");
+const switchToLogin = document.getElementById("switch-to-login");
+
+// Inputs
+const loginEmail = document.getElementById("login-email");
+const loginPassword = document.getElementById("login-password");
+const regEmail = document.getElementById("reg-email");
+const regPassword = document.getElementById("reg-password");
+const confirmCode = document.getElementById("confirm-code");
+const mfaChallengeCode = document.getElementById("mfa-challenge-code");
+
+// Botões
+const btnLogin = document.getElementById("btn-login");
+const btnRegister = document.getElementById("btn-register");
+const btnConfirmCode = document.getElementById("btn-confirm-code");
+const btnSubmitMfa = document.getElementById("btn-submit-mfa");
+const btnLogout = document.getElementById("btn-logout");
+
+// Perfil no Header
+const userProfileBar = document.getElementById("user-profile-bar");
+const headerUserEmail = document.getElementById("header-user-email");
+
+// Modal de Ativação do MFA
+const btnSetupMfaTrigger = document.getElementById("btn-setup-mfa-trigger");
+const mfaSetupModal = document.getElementById("mfa-setup-modal");
+const closeMfaModal = document.getElementById("close-mfa-modal");
+const btnCloseMfaModalFooter = document.getElementById("btn-close-mfa-modal-footer");
+const mfaSecretKey = document.getElementById("mfa-secret-key");
+const btnCopyMfaKey = document.getElementById("btn-copy-mfa-key");
+const mfaSetupCode = document.getElementById("mfa-setup-code");
+const btnVerifyMfa = document.getElementById("btn-verify-mfa");
+const mfaSetupError = document.getElementById("mfa-setup-error");
+
+
+// ==============================================================================
+// 3. Inicialização e Carregamento de Configurações
+// ==============================================================================
 async function loadConfig() {
     try {
         const response = await fetch("config.json");
@@ -40,80 +94,270 @@ async function loadConfig() {
         const config = await response.json();
         
         API_BASE_URL = config.api_base_url;
+        
+        // Inicializa o Amazon Cognito User Pool
+        const poolData = {
+            UserPoolId: config.cognito_user_pool_id,
+            ClientId: config.cognito_client_id
+        };
+        userPool = new AmazonCognitoIdentity.CognitoUserPool(poolData);
         isConfigured = true;
-        console.log("Configuração carregada com sucesso. API:", API_BASE_URL);
         
-        // Carrega os dados iniciais do painel
-        loadDashboard();
+        console.log("Configuração carregada. API:", API_BASE_URL, "Cognito:", poolData.UserPoolId);
         
-        // Configura pooling automático de 10 em 10 segundos para ver o status do processamento
-        setInterval(loadDashboard, 10000);
+        // Verifica se há um usuário logado em cache
+        checkCachedSession();
         
     } catch (err) {
-        console.warn("Arquivo config.json não encontrado ou inválido. Aguardando deploy do Terraform.");
+        console.warn("Arquivo config.json não encontrado ou Cognito não provisionado. Aguardando deploy da pipeline.");
         progressStatus.innerText = "Erro: Configuração não encontrada. Execute o deploy Terraform primeiro.";
         progressStatus.style.color = "var(--color-danger)";
         progressContainer.classList.remove("id-hide");
     }
 }
 
-// 2. Controlar Tabs
-tabButtons.forEach(btn => {
-    btn.addEventListener("click", () => {
-        tabButtons.forEach(b => b.classList.remove("active"));
-        tabContents.forEach(c => c.classList.remove("active"));
-        
-        btn.classList.add("active");
-        const targetTab = btn.getAttribute("data-tab");
-        document.getElementById(targetTab).classList.add("active");
+// Verifica sessão ativa salva pelo SDK no localStorage
+function checkCachedSession() {
+    cognitoUser = userPool.getCurrentUser();
+    if (cognitoUser != null) {
+        cognitoUser.getSession((err, session) => {
+            if (err || !session.isValid()) {
+                console.log("Sessão expirada ou inválida. Exibindo painel de Login.");
+                showAuthPanel("login");
+            } else {
+                console.log("Sessão válida encontrada.");
+                idToken = session.getIdToken().getJwtToken();
+                showDashboard(cognitoUser.getUsername());
+            }
+        });
+    } else {
+        showAuthPanel("login");
+    }
+}
+
+// ==============================================================================
+// 4. Controle Visual de Telas (Auth vs Dashboard)
+// ==============================================================================
+function showAuthPanel(section) {
+    authOverlay.classList.remove("id-hide");
+    userProfileBar.classList.add("id-hide");
+    authErrorMsg.classList.add("id-hide");
+    
+    // Esconde todas as seções
+    secLogin.classList.remove("active");
+    secRegister.classList.remove("active");
+    secConfirm.classList.remove("active");
+    secMfaChallenge.classList.remove("active");
+    
+    // Mostra a seção desejada
+    if (section === "login") secLogin.classList.add("active");
+    else if (section === "register") secRegister.classList.add("active");
+    else if (section === "confirm") secConfirm.classList.add("active");
+    else if (section === "mfa-challenge") secMfaChallenge.classList.add("active");
+}
+
+function showDashboard(email) {
+    authOverlay.classList.add("id-hide");
+    userProfileBar.classList.remove("id-hide");
+    headerUserEmail.innerText = email;
+    
+    // Carrega a listagem de arquivos
+    loadDashboard();
+    
+    // Pooling de atualização de 10s
+    if (window.dashboardInterval) clearInterval(window.dashboardInterval);
+    window.dashboardInterval = setInterval(loadDashboard, 10000);
+}
+
+function showAuthError(msg) {
+    authErrorMsg.innerText = msg;
+    authErrorMsg.classList.remove("id-hide");
+}
+
+// ==============================================================================
+// 5. Fluxos de Autenticação com Cognito SDK
+// ==============================================================================
+
+// Eventos de troca de telas de autenticação
+switchToRegister.addEventListener("click", (e) => { e.preventDefault(); showAuthPanel("register"); });
+switchToLogin.addEventListener("click", (e) => { e.preventDefault(); showAuthPanel("login"); });
+
+// Fluxo de Cadastro (Sign Up)
+btnRegister.addEventListener("click", () => {
+    const email = regEmail.value.trim();
+    const password = regPassword.value;
+    
+    if (!email || !password) {
+        showAuthError("Preencha todos os campos.");
+        return;
+    }
+    
+    const attributeList = [
+        new AmazonCognitoIdentity.CognitoUserAttribute({ Name: "email", Value: email })
+    ];
+    
+    userPool.signUp(email, password, attributeList, null, (err, result) => {
+        if (err) {
+            showAuthError(err.message || JSON.stringify(err));
+            return;
+        }
+        cognitoUser = result.user;
+        console.log("Cadastro efetuado com sucesso. Confirmar e-mail:", cognitoUser.getUsername());
+        showAuthPanel("confirm");
     });
 });
 
-// 3. Eventos de Upload (Drag and Drop)
-uploadZone.addEventListener("click", () => fileInput.click());
-
-uploadZone.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    uploadZone.classList.add("dragover");
-});
-
-uploadZone.addEventListener("dragleave", () => {
-    uploadZone.classList.remove("dragover");
-});
-
-uploadZone.addEventListener("drop", (e) => {
-    e.preventDefault();
-    uploadZone.classList.remove("dragover");
-    if (e.dataTransfer.files.length > 0) {
-        handleFile(e.dataTransfer.files[0]);
-    }
-});
-
-fileInput.addEventListener("change", () => {
-    if (fileInput.files.length > 0) {
-        handleFile(fileInput.files[0]);
-    }
-});
-
-// Processar arquivo selecionado
-function handleFile(file) {
-    if (!isConfigured) {
-        alert("Erro: Aplicação sem conexão com a API. Verifique a implantação na AWS.");
+// Fluxo de Confirmação de Código de Cadastro
+btnConfirmCode.addEventListener("click", () => {
+    const code = confirmCode.value.trim();
+    if (!code) {
+        showAuthError("Digite o código de verificação.");
         return;
     }
     
-    if (file.type !== "application/pdf" && !file.name.endsWith(".pdf")) {
-        alert("Apenas arquivos no formato PDF são permitidos para processamento notarial.");
+    cognitoUser.confirmRegistration(code, true, (err, result) => {
+        if (err) {
+            showAuthError(err.message || JSON.stringify(err));
+            return;
+        }
+        alert("E-mail verificado com sucesso! Por favor, faça o login.");
+        showAuthPanel("login");
+    });
+});
+
+// Fluxo de Login (Sign In)
+btnLogin.addEventListener("click", () => {
+    const email = loginEmail.value.trim();
+    const password = loginPassword.value;
+    authErrorMsg.classList.add("id-hide");
+    
+    if (!email || !password) {
+        showAuthError("Preencha o e-mail e a senha.");
         return;
     }
     
-    // Inicia fluxo de upload
-    uploadFile(file);
-}
+    const authenticationData = { Username: email, Password: password };
+    const authenticationDetails = new AmazonCognitoIdentity.AuthenticationDetails(authenticationData);
+    
+    const userData = { Username: email, Pool: userPool };
+    cognitoUser = new AmazonCognitoIdentity.CognitoUser(userData);
+    
+    cognitoUser.authenticateUser(authenticationDetails, {
+        onSuccess: (result) => {
+            console.log("Login efetuado com sucesso.");
+            idToken = result.getIdToken().getJwtToken();
+            showDashboard(email);
+        },
+        onFailure: (err) => {
+            showAuthError(err.message || JSON.stringify(err));
+        },
+        // Caso o MFA esteja ativo para o usuário
+        mfaRequired: (challengeName, challengeParameters) => {
+            console.log("MFA Requerido para o login.");
+            showAuthPanel("mfa-challenge");
+        }
+    });
+});
 
-// Função de Upload E2E (Pre-signed URL + S3 Direct Upload)
+// Envio do código MFA durante o Login
+btnSubmitMfa.addEventListener("click", () => {
+    const code = mfaChallengeCode.value.trim();
+    if (!code) {
+        showAuthError("Digite o código gerado pelo aplicativo.");
+        return;
+    }
+    
+    cognitoUser.sendMFACode(code, {
+        onSuccess: (result) => {
+            console.log("Login com MFA efetuado com sucesso.");
+            idToken = result.getIdToken().getJwtToken();
+            showDashboard(cognitoUser.getUsername());
+        },
+        onFailure: (err) => {
+            showAuthError("Código de MFA inválido: " + err.message);
+        }
+    });
+});
+
+// Logout
+btnLogout.addEventListener("click", () => {
+    if (cognitoUser) {
+        cognitoUser.signOut();
+    }
+    cognitoUser = null;
+    idToken = "";
+    if (window.dashboardInterval) clearInterval(window.dashboardInterval);
+    console.log("Sign out efetuado.");
+    showAuthPanel("login");
+});
+
+// ==============================================================================
+// 6. Fluxo de Ativação de MFA no Perfil (TOTP / Google Authenticator)
+// ==============================================================================
+btnSetupMfaTrigger.addEventListener("click", () => {
+    mfaSetupError.classList.add("id-hide");
+    mfaSetupCode.value = "";
+    
+    // Obtém o token secreto do Cognito para parear com o app
+    cognitoUser.associateSoftwareToken({
+        associateTokenRequired: (secretCode) => {
+            mfaSecretKey.innerText = secretCode;
+            mfaSetupModal.classList.remove("id-hide");
+        },
+        onFailure: (err) => {
+            alert("Erro ao associar dispositivo MFA: " + err.message);
+        }
+    });
+});
+
+// Copiar chave do MFA para a área de transferência
+btnCopyMfaKey.addEventListener("click", () => {
+    navigator.clipboard.writeText(mfaSecretKey.innerText);
+    alert("Chave copiada!");
+});
+
+// Validar código gerado no app do usuário e ativar o MFA no Cognito
+btnVerifyMfa.addEventListener("click", () => {
+    const code = mfaSetupCode.value.trim();
+    if (!code) {
+        mfaSetupError.innerText = "Digite o código gerado.";
+        mfaSetupError.classList.remove("id-hide");
+        return;
+    }
+    
+    cognitoUser.verifySoftwareToken(code, "Aparelho Celular", {
+        onSuccess: (result) => {
+            // Define o software token MFA como a preferência de autenticação do usuário
+            cognitoUser.setUserMfaPreference(null, {
+                Preferred: true,
+                Enabled: true
+            }, (err, prefResult) => {
+                if (err) {
+                    mfaSetupError.innerText = "Erro ao definir preferência: " + err.message;
+                    mfaSetupError.classList.remove("id-hide");
+                } else {
+                    alert("Segundo fator de autenticação (MFA) habilitado com sucesso!");
+                    mfaSetupModal.classList.add("id-hide");
+                }
+            });
+        },
+        onFailure: (err) => {
+            mfaSetupError.innerText = "Código de ativação inválido: " + err.message;
+            mfaSetupError.classList.remove("id-hide");
+        }
+    });
+});
+
+// Fechar modal do MFA
+closeMfaModal.addEventListener("click", () => mfaSetupModal.classList.add("id-hide"));
+btnCloseMfaModalFooter.addEventListener("click", () => mfaSetupModal.classList.add("id-hide"));
+
+// ==============================================================================
+// 7. Chamadas de API Protegidas com JWT (Header Authorization)
+// ==============================================================================
+
+// Upload de Arquivo E2E
 async function uploadFile(file) {
-    // UI feedback
     progressContainer.classList.remove("id-hide");
     progressFileName.innerText = file.name;
     progressFileSize.innerText = formatBytes(file.size);
@@ -122,10 +366,13 @@ async function uploadFile(file) {
     progressStatus.style.color = "var(--color-primary)";
 
     try {
-        // 1. Obter URL Pré-Assinada
+        // Envia o token JWT ID no cabeçalho de Autorização
         const response = await fetch(`${API_BASE_URL}/presigned-url`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": idToken // JWT Token exigido pelo Authorizer
+            },
             body: JSON.stringify({
                 action: "upload",
                 file_name: file.name,
@@ -136,7 +383,7 @@ async function uploadFile(file) {
 
         if (!response.ok) {
             const errData = await response.json();
-            throw new Error(errData.error || "Erro ao gerar URL do S3");
+            throw new Error(errData.error || "Acesso negado ou erro no servidor.");
         }
 
         const data = await response.json();
@@ -144,7 +391,7 @@ async function uploadFile(file) {
         
         progressStatus.innerText = "Enviando arquivo diretamente para o S3 Raw...";
         
-        // 2. Upload direto para o S3 usando XMLHttpRequest para monitorar progresso
+        // Upload direto para o S3 (PUT com a URL pré-assinada não precisa de JWT pois a URL já é autenticada temporariamente)
         const xhr = new XMLHttpRequest();
         xhr.open("PUT", uploadUrl, true);
         xhr.setRequestHeader("Content-Type", file.type);
@@ -161,11 +408,8 @@ async function uploadFile(file) {
             if (xhr.status === 200) {
                 progressStatus.innerText = "Upload concluído! Disparando processamento na AWS Lambda...";
                 progressStatus.style.color = "var(--color-success)";
-                
-                // Limpa input
                 fileInput.value = "";
                 
-                // Recarrega o painel logo após
                 setTimeout(() => {
                     progressContainer.classList.add("id-hide");
                     loadDashboard();
@@ -175,10 +419,7 @@ async function uploadFile(file) {
             }
         };
 
-        xhr.onerror = () => {
-            showUploadError("Erro de conexão na transmissão para o S3.");
-        };
-
+        xhr.onerror = () => showUploadError("Erro de conexão na transmissão para o S3.");
         xhr.send(file);
 
     } catch (err) {
@@ -192,24 +433,30 @@ function showUploadError(msg) {
     progressBar.style.backgroundColor = "var(--color-danger)";
 }
 
-// 4. Carregar Listagem de Arquivos
+// Listagem de Arquivos (Dashboard)
 async function loadDashboard() {
-    if (!isConfigured) return;
+    if (!isConfigured || !idToken) return;
     
     try {
-        const response = await fetch(`${API_BASE_URL}/files`);
-        if (!response.ok) throw new Error("Erro ao buscar arquivos no S3");
+        const response = await fetch(`${API_BASE_URL}/files`, {
+            headers: {
+                "Authorization": idToken // JWT Token exigido pelo Authorizer
+            }
+        });
         
+        if (response.status === 401 || response.status === 403) {
+            console.warn("Acesso não autorizado. Efetuando logout automático.");
+            btnLogout.click();
+            return;
+        }
+        
+        if (!response.ok) throw new Error("Erro ao buscar arquivos no S3");
         const data = await response.json();
         
-        // Atualiza contadores
         countRaw.innerText = data.raw_files.length;
         countImultavel.innerText = data.imultavel_files.length;
         
-        // Renderiza tabela RAW
         renderRawTable(data.raw_files);
-        
-        // Renderiza tabela IMUTAVEL
         renderImultavelTable(data.imultavel_files);
         
     } catch (err) {
@@ -219,10 +466,7 @@ async function loadDashboard() {
 
 function renderRawTable(files) {
     if (files.length === 0) {
-        tbodyRaw.innerHTML = `
-            <tr class="empty-state">
-                <td colspan="5">Nenhum arquivo na fila temporária.</td>
-            </tr>`;
+        tbodyRaw.innerHTML = `<tr class="empty-state"><td colspan="5">Nenhum arquivo na fila temporária.</td></tr>`;
         return;
     }
     
@@ -246,10 +490,7 @@ function renderRawTable(files) {
 
 function renderImultavelTable(files) {
     if (files.length === 0) {
-        tbodyImultavel.innerHTML = `
-            <tr class="empty-state">
-                <td colspan="5">Nenhum documento arquivado com imutabilidade ainda.</td>
-            </tr>`;
+        tbodyImultavel.innerHTML = `<tr class="empty-state"><td colspan="5">Nenhum documento arquivado com imutabilidade ainda.</td></tr>`;
         return;
     }
     
@@ -261,7 +502,6 @@ function renderImultavelTable(files) {
             ? `<span class="lock-tag"><i class="fa-solid fa-lock"></i> COMPLIANCE (Ativo)</span>`
             : `<span class="status-tag waiting"><i class="fa-solid fa-lock-open"></i> Sem Trava</span>`;
             
-        // Preparando dados de metadados para passar para o modal via JSON
         const rawJson = encodeURIComponent(JSON.stringify(file));
             
         return `
@@ -283,12 +523,15 @@ function renderImultavelTable(files) {
     }).join("");
 }
 
-// 5. Baixar Arquivos com URL Pré-Assinada
+// Download Seguro de Arquivo
 async function downloadFile(key, bucketType) {
     try {
         const response = await fetch(`${API_BASE_URL}/presigned-url`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { 
+                "Content-Type": "application/json",
+                "Authorization": idToken // JWT Token exigido pelo Authorizer
+            },
             body: JSON.stringify({
                 action: "download",
                 file_name: key,
@@ -297,10 +540,8 @@ async function downloadFile(key, bucketType) {
         });
 
         if (!response.ok) throw new Error("Erro ao gerar link de download");
-        
         const data = await response.json();
         
-        // Abre o download em nova aba ou inicia download
         const tempLink = document.createElement("a");
         tempLink.href = data.download_url;
         tempLink.setAttribute("download", key);
@@ -309,61 +550,40 @@ async function downloadFile(key, bucketType) {
         document.body.removeChild(tempLink);
         
     } catch (err) {
-        alert("Erro ao efetuar o download do arquivo: " + err.message);
+        alert("Erro ao efetuar o download: " + err.message);
     }
 }
 
-// 6. Exibir Modal com Detalhes de Compliance
+// Visualização de Modal de Compliance
 async function showComplianceDetails(encodedFileJson) {
     const file = JSON.parse(decodeURIComponent(encodedFileJson));
-    
-    // Configura campos do modal
     detailFilename.innerText = file.key;
     
-    // Metadados simulados e reais obtidos do backend
     const hasLock = file.object_lock && file.object_lock.active;
-    
-    // Tenta obter o UUID e o Hash a partir de metadados simulados ou propriedades do arquivo
-    // No processador Lambda salvamos nas tags do S3. A key formatada tem a estrutura 'certificado_[uuid_curto]_[nome]'
-    // Vamos mostrar os metadados
     const keyParts = file.key.split('_');
     const displayUuid = keyParts[1] ? keyParts[1].toUpperCase() : 'N/A';
     
     detailUuid.innerText = displayUuid;
-    
-    // Se o backend retornou metadados customizados de hash ou se calculamos
-    // Como a API lista os arquivos de forma básica, podemos gerar um Hash fictício ou mostrar o que veio da Lambda.
-    // Para deixar completo, o list_files pode ser atualizado para ler o hash se quisermos, ou exibimos um SHA-256 baseado na chave
-    detailHash.innerText = "Aguardando leitura de tags...";
-    
-    // O list_files pode ser expandido para ler tags de metadados do S3. Como não lê em lote por performance,
-    // nós podemos estimar ou fazer uma requisição. Mas para simplificar, geramos um hash derivado ou mostramos 'Processado com SHA-256'.
-    // Mas pera, nós gravamos o hash na key ou nos metadados. Vamos simular um hash SHA-256 fixado/derivado caso falte:
-    const mockHash = sha256Mock(file.key);
-    detailHash.innerText = mockHash;
-    
+    detailHash.innerText = sha256Mock(file.key);
     detailDate.innerText = new Date(file.last_modified).toLocaleString('pt-BR');
     
     if (hasLock) {
         detailLockMode.innerText = file.object_lock.mode;
-        const lockUntil = new Date(file.object_lock.retain_until).toLocaleString('pt-BR');
-        detailLockDate.innerText = lockUntil;
+        detailLockDate.innerText = new Date(file.object_lock.retain_until).toLocaleString('pt-BR');
     } else {
         detailLockMode.innerText = "NÃO ATIVO";
         detailLockDate.innerText = "N/A (Livre para exclusão)";
     }
     
-    // Configura botão de download do modal
     btnDownloadCert.onclick = (e) => {
         e.preventDefault();
         downloadFile(file.key, 'imutavel');
     };
     
-    // Abre modal
     complianceModal.classList.remove("id-hide");
 }
 
-// Helper para gerar um Hash visual na tela caso os metadados S3 não estejam em cache
+// Helpers de Utilidades Gerais
 function sha256Mock(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -375,16 +595,6 @@ function sha256Mock(str) {
     return `${hex}a98f12b68c92de5f3774b78912efc4d32a9e8f${hex}`.substring(0, 64);
 }
 
-// Fechar modal
-closeModal.addEventListener("click", () => complianceModal.classList.add("id-hide"));
-btnCloseModalFooter.addEventListener("click", () => complianceModal.classList.add("id-hide"));
-window.addEventListener("click", (e) => {
-    if (e.target === complianceModal) {
-        complianceModal.classList.add("id-hide");
-    }
-});
-
-// Utilitário de formatação de bytes
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -394,6 +604,50 @@ function formatBytes(bytes, decimals = 2) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
-// Inicializar tudo ao carregar
+// ==============================================================================
+// 8. Eventos de Inicialização do Dashboard Estático
+// ==============================================================================
+uploadZone.addEventListener("click", () => fileInput.click());
+uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("dragover"); });
+uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("dragover"));
+uploadZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove("dragover");
+    if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => {
+    if (fileInput.files.length > 0) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+    if (!isConfigured) {
+        alert("Erro: Aplicação não configurada.");
+        return;
+    }
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+        alert("Formato inválido. Selecione um arquivo PDF.");
+        return;
+    }
+    uploadFile(file);
+}
+
+// Abas do dashboard
+tabButtons.forEach(btn => {
+    btn.addEventListener("click", () => {
+        tabButtons.forEach(b => b.classList.remove("active"));
+        tabContents.forEach(c => c.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(btn.getAttribute("data-tab")).classList.add("active");
+    });
+});
+
+closeModal.addEventListener("click", () => complianceModal.classList.add("id-hide"));
+btnCloseModalFooter.addEventListener("click", () => complianceModal.classList.add("id-hide"));
+window.addEventListener("click", (e) => {
+    if (e.target === complianceModal) complianceModal.classList.add("id-hide");
+});
+
 btnRefresh.addEventListener("click", loadDashboard);
+
+// Carregar Configurações na inicialização da página
 loadConfig();

@@ -10,11 +10,89 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <!-- FontAwesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- SDK de Autenticação do Amazon Cognito -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/amazon-cognito-identity-js/6.0.1/amazon-cognito-identity.min.js"></script>
     <!-- CSS Customizado -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="glow-bg"></div>
+
+    <!-- ==============================================================================
+    1. Painel de Autenticação (Login / Registro / Confirmação / Desafio MFA)
+    ============================================================================== -->
+    <div class="auth-overlay" id="auth-overlay">
+        <div class="auth-card glass-card">
+            <div class="auth-header">
+                <div class="logo-icon"><i class="fa-solid fa-file-shield"></i></div>
+                <h2>Cartório<span>Digital</span></h2>
+                <p>Autenticação Notarial Segura (MFA)</p>
+            </div>
+            
+            <!-- Aba de Login -->
+            <div class="auth-section active" id="sec-login">
+                <div class="input-group">
+                    <label for="login-email"><i class="fa-solid fa-envelope"></i> E-mail</label>
+                    <input type="email" id="login-email" placeholder="nome@exemplo.com">
+                </div>
+                <div class="input-group">
+                    <label for="login-password"><i class="fa-solid fa-lock"></i> Senha</label>
+                    <input type="password" id="login-password" placeholder="Digite sua senha">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-login">
+                    <i class="fa-solid fa-right-to-bracket"></i> Entrar
+                </button>
+                <p class="auth-switch">Não possui uma conta? <a href="#" id="switch-to-register">Cadastre-se</a></p>
+            </div>
+
+            <!-- Aba de Registro -->
+            <div class="auth-section" id="sec-register">
+                <div class="input-group">
+                    <label for="reg-email"><i class="fa-solid fa-envelope"></i> E-mail</label>
+                    <input type="email" id="reg-email" placeholder="nome@exemplo.com">
+                </div>
+                <div class="input-group">
+                    <label for="reg-password"><i class="fa-solid fa-lock"></i> Senha</label>
+                    <input type="password" id="reg-password" placeholder="Mínimo 8 caracteres (A-Z, 0-9, @)">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-register">
+                    <i class="fa-solid fa-user-plus"></i> Criar Conta
+                </button>
+                <p class="auth-switch">Já possui uma conta? <a href="#" id="switch-to-login">Fazer Login</a></p>
+            </div>
+
+            <!-- Aba de Confirmação de E-mail (MFA Signup) -->
+            <div class="auth-section" id="sec-confirm">
+                <p class="confirm-notice">Enviamos um código de verificação de 6 dígitos para o seu e-mail. Insira-o abaixo para confirmar a sua identidade e ativar sua conta.</p>
+                <div class="input-group">
+                    <label for="confirm-code"><i class="fa-solid fa-key"></i> Código de Confirmação</label>
+                    <input type="text" id="confirm-code" placeholder="123456" class="font-mono text-center text-large">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-confirm-code">
+                    <i class="fa-solid fa-circle-check"></i> Ativar Conta
+                </button>
+            </div>
+
+            <!-- Aba de Desafio MFA no Login (TOTP) -->
+            <div class="auth-section" id="sec-mfa-challenge">
+                <p class="confirm-notice"><i class="fa-solid fa-shield-halved text-warning"></i> Segundo fator de segurança ativo. Digite o código de 6 dígitos gerado pelo seu aplicativo Google Authenticator.</p>
+                <div class="input-group">
+                    <label for="mfa-challenge-code"><i class="fa-solid fa-mobile-screen-button"></i> Código Autenticador</label>
+                    <input type="text" id="mfa-challenge-code" placeholder="000 000" class="font-mono text-center text-large">
+                </div>
+                <button class="btn btn-primary btn-full" id="btn-submit-mfa">
+                    <i class="fa-solid fa-right-to-bracket"></i> Verificar & Entrar
+                </button>
+            </div>
+
+            <!-- Mensagem de erro unificada -->
+            <div class="auth-error id-hide" id="auth-error-msg">Erro de Autenticação</div>
+        </div>
+    </div>
+
+    <!-- ==============================================================================
+    2. Interface Principal (Dashboard - Protegida)
+    ============================================================================== -->
     <div class="container">
         
         <!-- Header -->
@@ -26,9 +104,24 @@
                     <p>Demonstração de Cloud Computing & Compliance</p>
                 </div>
             </div>
+            
             <div class="badge-provimento">
                 <i class="fa-solid fa-gavel"></i>
                 <span>Provimento nº 213/2026 CNJ</span>
+            </div>
+
+            <!-- Painel do Usuário logado -->
+            <div class="user-profile-bar id-hide" id="user-profile-bar">
+                <div class="user-info">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span id="header-user-email">email@exemplo.com</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="btn-setup-mfa-trigger">
+                    <i class="fa-solid fa-shield-halved"></i> Configurar MFA
+                </button>
+                <button class="btn btn-danger btn-sm" id="btn-logout">
+                    <i class="fa-solid fa-right-from-bracket"></i> Sair
+                </button>
             </div>
         </header>
 
@@ -94,10 +187,10 @@
                             </div>
                         </li>
                         <li>
-                            <div class="service-logo"><i class="fa-solid fa-network-wired"></i></div>
+                            <div class="service-logo"><i class="fa-solid fa-key"></i></div>
                             <div class="service-desc">
-                                <strong>Amazon API Gateway</strong>
-                                <p>Roteamento das requisições HTTP seguras com controle de CORS.</p>
+                                <strong>Amazon Cognito & WAF</strong>
+                                <p>Autenticação segura, segundo fator de login (MFA) e proteção de borda contra ataques comuns.</p>
                             </div>
                         </li>
                         <li>
@@ -149,7 +242,6 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-raw">
-                                    <!-- Dinâmico -->
                                     <tr class="empty-state">
                                         <td colspan="5">Nenhum arquivo na fila temporária.</td>
                                     </tr>
@@ -171,7 +263,6 @@
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-imultavel">
-                                    <!-- Dinâmico -->
                                     <tr class="empty-state">
                                         <td colspan="5">Nenhum documento arquivado com imutabilidade ainda.</td>
                                     </tr>
@@ -185,6 +276,10 @@
         </div>
 
     </div>
+
+    <!-- ==============================================================================
+    3. Modais da Aplicação (Certificado e Configuração de MFA)
+    ============================================================================== -->
 
     <!-- Modal de Detalhes da Certidão e Compliance -->
     <div class="modal id-hide" id="compliance-modal">
@@ -233,6 +328,48 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="btn-close-modal-footer">Fechar</button>
                 <a href="#" class="btn btn-primary" id="btn-download-cert" target="_blank"><i class="fa-solid fa-download"></i> Baixar PDF Certificado</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração / Ativação do MFA (TOTP) -->
+    <div class="modal id-hide" id="mfa-setup-modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-shield-halved text-gradient"></i> Configurar Verificação em Duas Etapas</h3>
+                <button class="close-btn" id="close-mfa-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>O Provimento nº 213/2026 exige controle de acesso seguro e identificação multifator. Siga as instruções abaixo para ativar a proteção no seu login:</p>
+                
+                <div class="mfa-step">
+                    <strong>Passo 1:</strong> Instale o app <strong>Google Authenticator</strong> ou <strong>Authy</strong> no seu celular.
+                </div>
+                
+                <div class="mfa-step">
+                    <strong>Passo 2:</strong> Adicione uma nova conta no app e insira manualmente a chave secreta de sincronização abaixo:
+                    <div class="mfa-secret-box">
+                        <span class="font-mono text-highlight" id="mfa-secret-key">OBTENDO CHAVE...</span>
+                        <button class="btn btn-secondary btn-sm" id="btn-copy-mfa-key">
+                            <i class="fa-solid fa-copy"></i> Copiar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mfa-step">
+                    <strong>Passo 3:</strong> Digite o código de 6 dígitos gerado pelo seu aplicativo Authenticator para confirmar o vínculo:
+                    <div class="input-group" style="margin-top: 0.75rem;">
+                        <input type="text" id="mfa-setup-code" placeholder="000 000" class="font-mono text-center text-large">
+                    </div>
+                </div>
+                
+                <div class="auth-error id-hide" id="mfa-setup-error">Erro ao habilitar o MFA. Tente novamente.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-close-mfa-modal-footer">Cancelar</button>
+                <button class="btn btn-primary" id="btn-verify-mfa">
+                    <i class="fa-solid fa-lock"></i> Sincronizar e Habilitar
+                </button>
             </div>
         </div>
     </div>
