@@ -23,11 +23,6 @@ output "s3_imultavel_bucket_name" {
   value       = aws_s3_bucket.imultavel.id
 }
 
-output "github_actions_role_arn" {
-  description = "ARN da Role IAM federada que o GitHub Actions deve assumir para fazer deploy"
-  value       = aws_iam_role.github_actions_role.arn
-}
-
 output "sns_topic_arn" {
   description = "ARN do tópico SNS de notificações"
   value       = aws_sns_topic.notificacoes_cartorio.arn

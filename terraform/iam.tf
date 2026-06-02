@@ -160,39 +160,6 @@ resource "aws_iam_role_policy_attachment" "lambda_processor_attach" {
   policy_arn = aws_iam_policy.lambda_processor_policy.arn
 }
 
-# ==============================================================================
-# 4. IAM Role Federada para GitHub Actions (Referenciando OIDC existente)
-# ==============================================================================
-# Role do GitHub Actions para assumir via OIDC
-resource "aws_iam_role" "github_actions_role" {
-  name = "${var.project_name}-github-actions-deploy-role"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Principal = {
-          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
-        }
-        Action = "sts:AssumeRoleWithWebIdentity"
-        Condition = {
-          StringEquals = {
-            "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          }
-          StringLike = {
-            # Restringe acesso apenas para deploys iniciados pelo repositório do usuário
-            "token.actions.githubusercontent.com:sub" = "repo:${var.github_repository}:*"
-          }
-        }
-      }
-    ]
-  })
-}
-
-# Política Administrativa para a Role do GitHub Actions provisionar a infraestrutura
-# Em ambientes corporativos, essa política deve ser reduzida para cobrir apenas os recursos utilizados
-resource "aws_iam_role_policy_attachment" "github_actions_admin" {
-  role       = aws_iam_role.github_actions_role.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
-}
+# A Role 'cartorio-digital-github-actions-deploy-role' é um pré-requisito manual
+# para o GitHub OIDC funcionar e deve ser gerenciada fora deste arquivo Terraform
+# para evitar dependência circular na pipeline.
