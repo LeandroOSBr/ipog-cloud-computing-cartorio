@@ -29,18 +29,10 @@ resource "aws_cloudfront_distribution" "frontend" {
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "S3-Frontend"
 
-    # Encaminha para o cache padrão (caching ativo)
-    forwarded_values {
-      query_string = false
-      cookies {
-        forward = "none"
-      }
-    }
-
     viewer_protocol_policy = "redirect-to-https"
-    min_ttl                = 0
-    default_ttl            = 3600
-    max_ttl                = 86400
+    
+    # Usa a política de cache padrão otimizada da AWS para sites estáticos
+    cache_policy_id = "658327ea-f89d-4fab-a63d-7e88639e58f6" # Managed-CachingOptimized
   }
 
   # Configurações de restrição geográfica (opcional, sem restrição)
@@ -80,22 +72,11 @@ resource "aws_cloudfront_distribution" "api" {
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "APIGateway-Backend"
 
-    # IMPORTANTE: Desativamos o cache para a API para que as requisições cheguem sempre nas Lambdas
-    min_ttl     = 0
-    default_ttl = 0
-    max_ttl     = 0
-
-    # Encaminha todas as query strings, cabeçalhos HTTP (Headers) e cookies necessários
-    forwarded_values {
-      query_string = true
-      headers      = ["*"] # Necessário para passar headers do cliente (Auth, Content-Type, CORS, etc.)
-
-      cookies {
-        forward = "all"
-      }
-    }
-
     viewer_protocol_policy = "redirect-to-https"
+
+    # Desativa cache na API e encaminha todos os headers, EXCETO o 'Host' para evitar erro 403 no API Gateway
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingDisabled
+    origin_request_policy_id = "b689b0a8-53d0-40b8-8a0a-3450e5539059" # Managed-AllViewerExceptHostHeader
   }
 
   restrictions {
