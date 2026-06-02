@@ -13,7 +13,7 @@ variable "project_name" {
 variable "notification_email" {
   description = "E-mail que receberá as notificações de conformidade do SNS"
   type        = string
-  default     = "seu-email@exemplo.com" # Substitua no deployment
+  default     = "leandro.os.br@gmail.com" # Substitua no deployment
 }
 
 variable "github_repository" {
