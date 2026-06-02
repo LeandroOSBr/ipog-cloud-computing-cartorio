@@ -161,15 +161,8 @@ resource "aws_iam_role_policy_attachment" "lambda_processor_attach" {
 }
 
 # ==============================================================================
-# 4. Provedor OIDC e IAM Role Federada para GitHub Actions
+# 4. IAM Role Federada para GitHub Actions (Referenciando OIDC existente)
 # ==============================================================================
-# Cria o provedor OIDC para o GitHub se ele não existir na conta (opcional)
-resource "aws_iam_openid_connect_provider" "github" {
-  url             = "https://token.actions.githubusercontent.com"
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"] # Thumbprint da CA do GitHub
-}
-
 # Role do GitHub Actions para assumir via OIDC
 resource "aws_iam_role" "github_actions_role" {
   name = "${var.project_name}-github-actions-deploy-role"
@@ -180,7 +173,7 @@ resource "aws_iam_role" "github_actions_role" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.github.arn
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
