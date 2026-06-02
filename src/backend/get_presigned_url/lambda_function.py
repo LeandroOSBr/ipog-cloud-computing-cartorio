@@ -37,7 +37,7 @@ def lambda_handler(event, context):
             
         action = body.get('action', 'upload') # 'upload' ou 'download'
         file_name = body.get('file_name')
-        file_type = body.get('file_type', 'application/pdf')
+        file_type = body.get('file_type') or 'application/pdf'
         bucket_type = body.get('bucket_type', 'raw') # 'raw' ou 'imutavel'
         
         if not file_name:
