@@ -1,0 +1,90 @@
+name: "CI/CD - Cartório Digital AWS"
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  id-token: write # Obrigatório para requisitar o OIDC JWT token
+  contents: read  # Obrigatório para checkout do código
+
+jobs:
+  deploy:
+    name: "Validar e Implantar Infraestrutura & Aplicação"
+    runs-on: ubuntu-latest
+    
+    # Define o diretório de trabalho padrão como a pasta do terraform
+    defaults:
+      run:
+        working-directory: ./terraform
+
+    steps:
+      # 1. Checkout do repositório
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Configura Python para instalar dependências do processador PDF
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-level: '3.9'
+
+      # 3. Instala dependências da Lambda (pypdf) na pasta local antes do Terraform gerar o ZIP
+      - name: Install Lambda Dependencies
+        run: |
+          pip install pypdf -t ../src/backend/process_pdf
+          # Limpa caches de instalação do pip para otimizar o zip
+          find ../src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
+        working-directory: .
+
+      # 4. Configuração das Credenciais AWS via OIDC (Sem chaves fixas nos secrets)
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+
+      # 5. Configurar o Terraform
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      # 6. Inicializar o Terraform
+      - name: Terraform Init
+        run: terraform init
+
+      # 7. Validar sintaxe do Terraform
+      - name: Terraform Validate
+        run: terraform validate
+
+      # 8. Executar Planejamento (Plan) - Executado em PRs e Pushes
+      - name: Terraform Plan
+        id: plan
+        run: terraform plan -no-color
+        continue-on-error: false
+
+      # 9. Executar Aplicação (Apply) - Executado apenas na branch main
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+
+      # 10. Construir config.json e sincronizar Frontend com o S3
+      - name: Deploy Frontend assets to S3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          # 1. Captura as saídas do Terraform
+          API_ENDPOINT=$(terraform output -raw api_endpoint)
+          FRONTEND_BUCKET=$(terraform output -raw s3_frontend_bucket_name)
+          
+          # 2. Cria o arquivo de configuração dinâmico para o Javascript
+          echo "{\"api_base_url\": \"$API_ENDPOINT\"}" > ../src/frontend/config.json
+          
+          # 3. Faz o upload dos arquivos do frontend para o S3 de Hosting
+          aws s3 sync ../src/frontend/ s3://$FRONTEND_BUCKET/ --delete
+        working-directory: ./terraform

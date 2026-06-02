@@ -1,0 +1,27 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+terraform/files/
+terraform/.terraform.lock.hcl
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+src/backend/process_pdf/pypdf/
+src/backend/process_pdf/pypdf-*.dist-info/
+
+# Logs e arquivos do sistema
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.gemini/
+.system_generated/

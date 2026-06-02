@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartório Digital - Cloud Computing & Provimento 213/2026 CNJ</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- FontAwesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- CSS Customizado -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="container">
+        
+        <!-- Header -->
+        <header>
+            <div class="logo-area">
+                <div class="logo-icon"><i class="fa-solid fa-file-shield"></i></div>
+                <div class="logo-text">
+                    <h1>Cartório<span>Digital</span></h1>
+                    <p>Demonstração de Cloud Computing & Compliance</p>
+                </div>
+            </div>
+            <div class="badge-provimento">
+                <i class="fa-solid fa-gavel"></i>
+                <span>Provimento nº 213/2026 CNJ</span>
+            </div>
+        </header>
+
+        <!-- Seção de Alerta de Compliance -->
+        <section class="compliance-alert">
+            <div class="alert-icon"><i class="fa-solid fa-circle-info"></i></div>
+            <div class="alert-content">
+                <strong>Segurança & Imutabilidade (CNJ Provimento 213/2026):</strong>
+                Esta aplicação demonstra a conformidade com as regras de prevenção contra ransomware e integridade arquivística digital. Os arquivos no bucket <code>s3_cartorio_imultavel</code> são protegidos por <strong>AWS S3 Object Lock (WORM)</strong>, impedindo qualquer modificação ou exclusão por tempo determinado, mesmo para o administrador do sistema.
+            </div>
+        </section>
+
+        <!-- Grid Principal -->
+        <div class="dashboard-grid">
+            
+            <!-- Painel Esquerdo: Upload e Informações -->
+            <div class="panel-left">
+                
+                <!-- Card de Upload -->
+                <div class="card glass-card upload-card">
+                    <div class="card-header">
+                        <h2><i class="fa-solid fa-cloud-arrow-up"></i> Novo Registro de Documento</h2>
+                        <span class="step-badge">Fase 1</span>
+                    </div>
+                    
+                    <div class="upload-zone" id="upload-zone">
+                        <input type="file" id="file-input" accept="application/pdf" hidden>
+                        <i class="fa-solid fa-file-pdf file-icon"></i>
+                        <h3>Arraste o arquivo PDF aqui</h3>
+                        <p>ou clique para selecionar do seu computador</p>
+                        <span class="file-limits">Apenas arquivos PDF são permitidos para certificação</span>
+                    </div>
+
+                    <!-- Progresso do Upload -->
+                    <div class="upload-progress-container id-hide" id="progress-container">
+                        <div class="file-details">
+                            <span class="file-name" id="progress-file-name">documento.pdf</span>
+                            <span class="file-size" id="progress-file-size">0 KB</span>
+                        </div>
+                        <div class="progress-bar-wrapper">
+                            <div class="progress-bar" id="progress-bar"></div>
+                        </div>
+                        <div class="progress-status" id="progress-status">Preparando envio...</div>
+                    </div>
+                </div>
+
+                <!-- Card de Status do Sistema / Detalhes de Integração -->
+                <div class="card glass-card info-card">
+                    <h3><i class="fa-solid fa-cubes"></i> Serviços AWS Utilizados</h3>
+                    <ul class="aws-services-list">
+                        <li>
+                            <div class="service-logo"><i class="fa-brands fa-aws"></i></div>
+                            <div class="service-desc">
+                                <strong>AWS Lambda</strong>
+                                <p>Backend serverless para geração de assinaturas e processamento automatizado de PDF.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="service-logo"><i class="fa-solid fa-database"></i></div>
+                            <div class="service-desc">
+                                <strong>Amazon S3 (Buckets Raw & Imutável)</strong>
+                                <p>Armazenamento estático, buckets de arquivos com versionamento e bloqueio contra ransomware.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="service-logo"><i class="fa-solid fa-network-wired"></i></div>
+                            <div class="service-desc">
+                                <strong>Amazon API Gateway</strong>
+                                <p>Roteamento das requisições HTTP seguras com controle de CORS.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <div class="service-logo"><i class="fa-solid fa-bell"></i></div>
+                            <div class="service-desc">
+                                <strong>Amazon SNS (Simple Notification Service)</strong>
+                                <p>Disparo instantâneo de alertas de auditoria e conformidade digital via e-mail.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Painel Direito: Dashboard de Arquivos -->
+            <div class="panel-right">
+                
+                <!-- Dashboard de Arquivos -->
+                <div class="card glass-card files-card">
+                    <div class="files-header">
+                        <h2><i class="fa-solid fa-folder-open"></i> Painel de Gerenciamento Notarial</h2>
+                        <button class="btn btn-secondary" id="btn-refresh">
+                            <i class="fa-solid fa-arrows-rotate"></i> Atualizar Painel
+                        </button>
+                    </div>
+
+                    <!-- Tabs de Visualização -->
+                    <div class="tabs">
+                        <button class="tab-btn active" data-tab="tab-raw">
+                            <i class="fa-solid fa-hourglass-half"></i> Entrada Raw S3 
+                            <span class="count-badge" id="count-raw">0</span>
+                        </button>
+                        <button class="tab-btn" data-tab="tab-imultavel">
+                            <i class="fa-solid fa-file-circle-check"></i> Arquivo Imutável (WORM)
+                            <span class="count-badge" id="count-imultavel">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Conteúdo das Tabs -->
+                    <div class="tab-content active" id="tab-raw">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Nome do Arquivo</th>
+                                        <th>Tamanho</th>
+                                        <th>Enviado Em</th>
+                                        <th>Status</th>
+                                        <th class="text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-raw">
+                                    <!-- Dinâmico -->
+                                    <tr class="empty-state">
+                                        <td colspan="5">Nenhum arquivo na fila temporária.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-content" id="tab-imultavel">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Arquivo Certificado</th>
+                                        <th>Tamanho</th>
+                                        <th>Registro Oficial</th>
+                                        <th>Object Lock (Imutabilidade)</th>
+                                        <th class="text-right">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tbody-imultavel">
+                                    <!-- Dinâmico -->
+                                    <tr class="empty-state">
+                                        <td colspan="5">Nenhum documento arquivado com imutabilidade ainda.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Modal de Detalhes da Certidão e Compliance -->
+    <div class="modal id-hide" id="compliance-modal">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-certificate text-gradient"></i> Certidão de Registro e Conformidade</h3>
+                <button class="close-btn" id="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="certificate-badge">
+                    <i class="fa-solid fa-shield-halved"></i>
+                    <span>S3 Object Lock Ativo</span>
+                </div>
+                
+                <div class="compliance-details">
+                    <div class="detail-row">
+                        <span class="label">Arquivo Original:</span>
+                        <span class="value" id="detail-filename">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Identificador de Registro (UUID):</span>
+                        <span class="value font-mono text-highlight" id="detail-uuid">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Hash de Integridade (SHA-256):</span>
+                        <span class="value font-mono" id="detail-hash">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Data de Protocolo:</span>
+                        <span class="value" id="detail-date">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Modo do Object Lock S3:</span>
+                        <span class="value text-warning" id="detail-lock-mode">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Impedimento de Exclusão até:</span>
+                        <span class="value text-success" id="detail-lock-date">-</span>
+                    </div>
+                </div>
+                
+                <div class="compliance-quote">
+                    <p><em>"O Provimento nº 213/2026 exige trilhas de auditoria, criptografia e mecanismos de backup imutáveis protegidos contra ataques cibernéticos. O uso do S3 Object Lock no modo COMPLIANCE garante que este documento não seja alterado nem deletado por nenhum ator antes da data especificada."</em></p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btn-close-modal-footer">Fechar</button>
+                <a href="#" class="btn btn-primary" id="btn-download-cert" target="_blank"><i class="fa-solid fa-download"></i> Baixar PDF Certificado</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script principal -->
+    <script src="app.js"></script>
+</body>
+</html>
