@@ -8,14 +8,9 @@ import boto3
 # Importa pypdf (será empacotada na pipeline)
 try:
     from pypdf import PdfReader, PdfWriter
+    HAS_PYPDF = True
 except ImportError:
-    # Fallback para caso de teste local sem a biblioteca instalada
-    class PdfReader:
-        def __init__(self, path): self.pages = []
-    class PdfWriter:
-        def add_page(self, p): pass
-        def add_metadata(self, m): pass
-        def write(self, f): pass
+    HAS_PYPDF = False
 
 s3_client = boto3.client('s3', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
 sns_client = boto3.client('sns', region_name=os.environ.get('AWS_REGION', 'us-east-1'))
@@ -58,34 +53,38 @@ def lambda_handler(event, context):
             data_registro = datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')
             
             # 3. Adiciona metadados no PDF (Simulação do Selo Digital / Provimento 213)
-            try:
-                reader = PdfReader(tmp_download_path)
-                writer = PdfWriter()
-                
-                # Copia todas as páginas
-                if len(reader.pages) > 0:
-                    for page in reader.pages:
-                        writer.add_page(page)
-                        
-                # Adiciona metadados de autenticidade no PDF
-                writer.add_metadata({
-                    "/Title": f"Documento Registrado - {raw_key}",
-                    "/Author": "Cartorio Digital de Cloud Computing",
-                    "/Subject": "Conformidade Provimento CNJ 213/2026",
-                    "/Keywords": f"Hash:{pdf_hash}, Registro:{registro_id}, Data:{data_registro}",
-                    "/Creator": "AWS Lambda PDF Processor",
-                    "/Producer": "AWS Lambda - Antigravity Agent",
-                    # Campo customizado de certificação
-                    "/Certification": "Autenticado e Arquivado de forma imutavel nos termos do Provimento CNJ 213/2026"
-                })
-                
-                with open(tmp_processed_path, "wb") as f_out:
-                    writer.write(f_out)
+            if HAS_PYPDF:
+                try:
+                    reader = PdfReader(tmp_download_path)
+                    writer = PdfWriter()
                     
-                print("Metadados do PDF injetados com sucesso.")
-            except Exception as pdf_err:
-                print(f"Erro ao injetar metadados no PDF (usando arquivo original): {str(pdf_err)}")
-                # Em caso de erro na biblioteca PDF, prossegue com o arquivo original
+                    # Copia todas as páginas
+                    if len(reader.pages) > 0:
+                        for page in reader.pages:
+                            writer.add_page(page)
+                            
+                    # Adiciona metadados de autenticidade no PDF
+                    writer.add_metadata({
+                        "/Title": f"Documento Registrado - {raw_key}",
+                        "/Author": "Cartorio Digital de Cloud Computing",
+                        "/Subject": "Conformidade Provimento CNJ 213/2026",
+                        "/Keywords": f"Hash:{pdf_hash}, Registro:{registro_id}, Data:{data_registro}",
+                        "/Creator": "AWS Lambda PDF Processor",
+                        "/Producer": "AWS Lambda - Antigravity Agent",
+                        # Campo customizado de certificação
+                        "/Certification": "Autenticado e Arquivado de forma imutavel nos termos do Provimento CNJ 213/2026"
+                    })
+                    
+                    with open(tmp_processed_path, "wb") as f_out:
+                        writer.write(f_out)
+                        
+                    print("Metadados do PDF injetados com sucesso.")
+                except Exception as pdf_err:
+                    print(f"Erro ao injetar metadados no PDF (usando arquivo original): {str(pdf_err)}")
+                    # Em caso de erro na biblioteca PDF, prossegue com o arquivo original
+                    tmp_processed_path = tmp_download_path
+            else:
+                print("Aviso: pypdf não disponível. Usando arquivo original de fallback.")
                 tmp_processed_path = tmp_download_path
             
             # 4. Define o novo nome do arquivo processado
@@ -108,6 +107,13 @@ def lambda_handler(event, context):
                 }
             )
             print(f"Arquivo enviado com sucesso para o bucket imutavel: {processed_key}")
+            
+            # 5.5. Deleta o arquivo original do bucket RAW para limpar a fila
+            try:
+                s3_client.delete_object(Bucket=raw_bucket, Key=raw_key)
+                print(f"Arquivo original deletado do bucket Raw para liberar fila: {raw_key}")
+            except Exception as delete_err:
+                print(f"Erro ao deletar arquivo do bucket Raw: {str(delete_err)}")
             
             # 6. Envia a notificação SNS
             if SNS_TOPIC_ARN:

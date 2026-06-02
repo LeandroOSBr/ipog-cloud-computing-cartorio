@@ -32,8 +32,8 @@ jobs:
 
       - name: Install Lambda Dependencies
         run: |
-          pip install pypdf -t ../src/backend/process_pdf
-          find ../src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
+          pip install pypdf -t src/backend/process_pdf
+          find src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
         working-directory: .
 
       - name: Configure AWS Credentials (OIDC)
@@ -81,8 +81,8 @@ jobs:
 
       - name: Install Lambda Dependencies
         run: |
-          pip install pypdf -t ../src/backend/process_pdf
-          find ../src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
+          pip install pypdf -t src/backend/process_pdf
+          find src/backend/process_pdf -type d -name "__pycache__" -exec rm -rf {} + || true
         working-directory: .
 
       - name: Configure AWS Credentials (OIDC)
