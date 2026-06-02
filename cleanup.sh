@@ -106,4 +106,28 @@ for ROLE in $ROLES; do
   fi
 done
 
+# 8. Deletar Cognito User Pools
+echo "👥 Buscando Cognito User Pools..."
+USER_POOLS=$(aws cognito-idp list-user-pools --max-results 60 --query "UserPools[?contains(Name, 'cartorio-digital')].Id" --output text)
+
+for POOL_ID in $USER_POOLS; do
+  echo "❌ Deletando Cognito User Pool ID: $POOL_ID"
+  aws cognito-idp delete-user-pool --user-pool-id "$POOL_ID"
+done
+
+# 9. Deletar WAF Web ACL (Global / CloudFront Scope)
+echo "🛡️ Buscando WAF Web ACLs..."
+WAF_ACLS=$(aws wafv2 list-web-acls --scope CLOUDFRONT --query "WebACLs[?contains(Name, 'cartorio-digital')].[Name,Id]" --output text)
+
+if [ -n "$WAF_ACLS" ] && [ "$WAF_ACLS" != "None" ]; then
+  while read -r WAF_NAME WAF_ID; do
+    if [ -n "$WAF_NAME" ] && [ -n "$WAF_ID" ]; then
+      echo "Obtendo Lock Token para Web ACL: $WAF_NAME ($WAF_ID)"
+      LOCK_TOKEN=$(aws wafv2 get-web-acl --name "$WAF_NAME" --scope CLOUDFRONT --id "$WAF_ID" --query "LockToken" --output text)
+      echo "❌ Deletando WAF Web ACL: $WAF_NAME"
+      aws wafv2 delete-web-acl --name "$WAF_NAME" --scope CLOUDFRONT --id "$WAF_ID" --lock-token "$LOCK_TOKEN"
+    fi
+  done <<< "$WAF_ACLS"
+fi
+
 echo "🎉 Cleanup concluído com sucesso!"
