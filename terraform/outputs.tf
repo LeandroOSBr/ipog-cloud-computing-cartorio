@@ -37,3 +37,8 @@ output "cognito_user_pool_client_id" {
   description = "ID do Cognito User Pool Client"
   value       = aws_cognito_user_pool_client.client.id
 }
+
+output "cloudfront_frontend_distribution_id" {
+  description = "ID da distribuição do CloudFront para o Frontend"
+  value       = aws_cloudfront_distribution.frontend.id
+}
