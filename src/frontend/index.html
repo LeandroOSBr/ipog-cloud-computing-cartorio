@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- SDK de Autenticação do Amazon Cognito (Local) -->
     <script src="amazon-cognito-identity.min.js"></script>
+    <!-- Gerador de QR Code para MFA (Local) -->
+    <script src="qrcode.min.js"></script>
     <!-- CSS Customizado -->
     <link rel="stylesheet" href="style.css">
 </head>
@@ -347,7 +349,8 @@
                 </div>
                 
                 <div class="mfa-step">
-                    <strong>Passo 2:</strong> Adicione uma nova conta no app e insira manualmente a chave secreta de sincronização abaixo:
+                    <strong>Passo 2:</strong> Abra o aplicativo e escaneie o código QR abaixo, ou insira manualmente a chave secreta de sincronização:
+                    <div class="mfa-qr-container" id="mfa-qr-container"></div>
                     <div class="mfa-secret-box">
                         <span class="font-mono text-highlight" id="mfa-secret-key">OBTENDO CHAVE...</span>
                         <button class="btn btn-secondary btn-sm" id="btn-copy-mfa-key">

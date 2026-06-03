@@ -974,3 +974,21 @@ header {
     letter-spacing: 0.05rem;
 }
 
+.mfa-qr-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #ffffff;
+    padding: 12px;
+    border-radius: 12px;
+    width: 174px;
+    height: 174px;
+    margin: 1.25rem auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.mfa-qr-container canvas,
+.mfa-qr-container img {
+    width: 150px !important;
+    height: 150px !important;
+}

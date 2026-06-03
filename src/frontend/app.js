@@ -309,6 +309,23 @@ btnSetupMfaTrigger.addEventListener("click", () => {
     cognitoUser.associateSoftwareToken({
         associateSecretCode: (secretCode) => {
             mfaSecretKey.innerText = secretCode;
+            
+            // Constroi a URI no padrão OTPAuth para o Google Authenticator/Authy
+            const email = cognitoUser.getUsername();
+            const otpauthUri = `otpauth://totp/CartorioDigital:${encodeURIComponent(email)}?secret=${secretCode}&issuer=CartorioDigital`;
+            
+            // Limpa o contêiner do QR Code e renderiza a imagem correspondente
+            const qrContainer = document.getElementById("mfa-qr-container");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: otpauthUri,
+                width: 150,
+                height: 150,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+            
             mfaSetupModal.classList.remove("id-hide");
         },
         onFailure: (err) => {
