@@ -47,6 +47,29 @@ resource "aws_s3_bucket_object_lock_configuration" "imultavel_lock" {
   depends_on = [aws_s3_bucket_versioning.imultavel_versioning]
 }
 
+# Política do Bucket Imutável para negar qualquer exclusão (s3:DeleteObject e s3:DeleteObjectVersion)
+# Isso impede que o comando "aws s3 rm" (que tenta criar um Delete Marker via DeleteObject) funcione,
+# retornando "Access Denied" diretamente ao usuário para garantir imutabilidade total.
+resource "aws_s3_bucket_policy" "imultavel_policy" {
+  bucket = aws_s3_bucket.imultavel.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "DenyDeleteObjects"
+        Effect    = "Deny"
+        Principal = "*"
+        Action = [
+          "s3:DeleteObject",
+          "s3:DeleteObjectVersion"
+        ]
+        Resource = "${aws_s3_bucket.imultavel.arn}/*"
+      }
+    ]
+  })
+}
+
 # 3. Bucket Frontend (Privado - Acessado apenas via CloudFront CDN)
 resource "aws_s3_bucket" "frontend" {
   bucket        = "${var.project_name}-frontend-${random_id.bucket_suffix.hex}"
