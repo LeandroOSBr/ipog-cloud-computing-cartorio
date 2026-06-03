@@ -1,3 +1,9 @@
+// Captura de erros globais para exibição na tela
+window.onerror = function(message, source, lineno, colno, error) {
+    alert("Erro Javascript: " + message + "\nLinha: " + lineno + "\nOrigem: " + source);
+    return false;
+};
+
 // Configurações Globais de API e Autenticação
 let API_BASE_URL = "";
 let userPool = null;
