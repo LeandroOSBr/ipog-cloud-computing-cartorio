@@ -307,7 +307,7 @@ btnSetupMfaTrigger.addEventListener("click", () => {
     
     // Obtém o token secreto do Cognito para parear com o app
     cognitoUser.associateSoftwareToken({
-        associateTokenRequired: (secretCode) => {
+        associateSecretCode: (secretCode) => {
             mfaSecretKey.innerText = secretCode;
             mfaSetupModal.classList.remove("id-hide");
         },
