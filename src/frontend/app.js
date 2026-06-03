@@ -95,7 +95,8 @@ const mfaSetupError = document.getElementById("mfa-setup-error");
 // ==============================================================================
 async function loadConfig() {
     try {
-        const response = await fetch("config.json");
+        // Adiciona um parâmetro de tempo para evitar cache do config.json no navegador
+        const response = await fetch("config.json?t=" + new Date().getTime());
         if (!response.ok) throw new Error("Config not found");
         const config = await response.json();
         
