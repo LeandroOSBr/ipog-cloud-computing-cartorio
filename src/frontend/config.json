@@ -1,6 +1,6 @@
 {
   "api_base_url": "https://d2ajob0gvxrid0.cloudfront.net",
-  "cognito_user_pool_id": "us-east-1_be5fDqVlM",
-  "cognito_client_id": "5s5s65mhngad63qcsdddiimlc1",
+  "cognito_user_pool_id": "us-east-1_r1RzFHjpf",
+  "cognito_client_id": "70mdq5qjsc9ia96p6b3kesg8ps",
   "aws_region": "us-east-1"
 }
