@@ -258,9 +258,14 @@ btnLogin.addEventListener("click", () => {
         onFailure: (err) => {
             showAuthError(err.message || JSON.stringify(err));
         },
-        // Caso o MFA esteja ativo para o usuário
+        // Caso o MFA via Aplicativo (TOTP) esteja ativo para o usuário
+        totpRequired: (challengeName, challengeParameters) => {
+            console.log("TOTP MFA Requerido para o login.");
+            showAuthPanel("mfa-challenge");
+        },
+        // Caso o MFA via SMS esteja ativo para o usuário
         mfaRequired: (challengeName, challengeParameters) => {
-            console.log("MFA Requerido para o login.");
+            console.log("SMS MFA Requerido para o login.");
             showAuthPanel("mfa-challenge");
         }
     });
@@ -274,6 +279,7 @@ btnSubmitMfa.addEventListener("click", () => {
         return;
     }
     
+    // Responde ao desafio MFA informando que se trata de SOFTWARE_TOKEN_MFA (TOTP)
     cognitoUser.sendMFACode(code, {
         onSuccess: (result) => {
             console.log("Login com MFA efetuado com sucesso.");
@@ -283,7 +289,7 @@ btnSubmitMfa.addEventListener("click", () => {
         onFailure: (err) => {
             showAuthError("Código de MFA inválido: " + err.message);
         }
-    });
+    }, "SOFTWARE_TOKEN_MFA");
 });
 
 // Logout
