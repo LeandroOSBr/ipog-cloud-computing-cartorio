@@ -111,3 +111,57 @@ resource "aws_s3_bucket_policy" "frontend_policy" {
     ]
   })
 }
+
+# ==============================================================================
+# 4. Bucket para armazenar logs brutos do CloudTrail
+# ==============================================================================
+resource "aws_s3_bucket" "trail_logs" {
+  bucket        = "${var.project_name}-trail-logs-${random_id.bucket_suffix.hex}"
+  force_destroy = true
+}
+
+# Bloqueia todo o acesso público ao bucket do Trail
+resource "aws_s3_bucket_public_access_block" "trail_logs_public" {
+  bucket = aws_s3_bucket.trail_logs.id
+
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+# Política que permite ao CloudTrail gravar os logs no bucket
+resource "aws_s3_bucket_policy" "trail_logs_policy" {
+  bucket     = aws_s3_bucket.trail_logs.id
+  depends_on = [aws_s3_bucket_public_access_block.trail_logs_public]
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSCloudTrailAclCheck"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action   = "s3:GetBucketAcl"
+        Resource = aws_s3_bucket.trail_logs.arn
+      },
+      {
+        Sid    = "AWSCloudTrailWrite"
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action   = "s3:PutObject"
+        Resource = "${aws_s3_bucket.trail_logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+        Condition = {
+          StringEquals = {
+            "s3:x-amz-acl" = "bucket-owner-full-control"
+          }
+        }
+      }
+    ]
+  })
+}
+

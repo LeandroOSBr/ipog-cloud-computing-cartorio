@@ -160,6 +160,47 @@ resource "aws_iam_role_policy_attachment" "lambda_processor_attach" {
   policy_arn = aws_iam_policy.lambda_processor_policy.arn
 }
 
+# Role para permitir que o CloudTrail envie logs para o CloudWatch Logs
+resource "aws_iam_role" "cloudtrail_to_cloudwatch" {
+  name = "${var.project_name}-cloudtrail-to-cloudwatch-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "cloudtrail.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+}
+
+# Política vinculada à Role para gravação de logs
+resource "aws_iam_role_policy" "cloudtrail_policy" {
+  name = "${var.project_name}-cloudtrail-policy"
+  role = aws_iam_role.cloudtrail_to_cloudwatch.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "AWSCloudTrailCreateLogStream"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        # Referencia o Log Group do CloudTrail que será criado em monitoring.tf
+        Resource = "arn:aws:logs:*:*:log-group:/aws/cloudtrail/${var.project_name}-audit-logs:*"
+      }
+    ]
+  })
+}
+
 # A Role 'cartorio-digital-github-actions-deploy-role' é um pré-requisito manual
 # para o GitHub OIDC funcionar e deve ser gerenciada fora deste arquivo Terraform
 # para evitar dependência circular na pipeline.
+
