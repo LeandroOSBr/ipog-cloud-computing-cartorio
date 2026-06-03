@@ -5,8 +5,8 @@
 resource "aws_cognito_user_pool" "pool" {
   name = "${var.project_name}-user-pool"
 
-  # Permite que o usuário faça login usando o E-mail como apelido
-  alias_attributes = ["email"]
+  # Permite usar o e-mail diretamente como username
+  username_attributes = ["email"]
 
   # Configuração da política de senhas fortes
   password_policy {
