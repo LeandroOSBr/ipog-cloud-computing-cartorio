@@ -54,9 +54,9 @@ jobs:
       - name: Terraform Validate
         run: terraform validate
 
-      - name: Terraform Plan
+      - name: Terraform Plan (Destroy)
         id: plan
-        run: terraform plan -no-color
+        run: terraform plan -destroy -no-color
 
   apply:
     name: "Aprovar e Aplicar Infraestrutura (Apply)"
@@ -100,22 +100,5 @@ jobs:
       - name: Terraform Init
         run: terraform init
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve
-
-      - name: Deploy Frontend assets to S3
-        run: |
-          API_ENDPOINT=$(terraform output -raw api_endpoint)
-          FRONTEND_BUCKET=$(terraform output -raw s3_frontend_bucket_name)
-          COGNITO_USER_POOL_ID=$(terraform output -raw cognito_user_pool_id)
-          COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
-          CLOUDFRONT_DIST_ID=$(terraform output -raw cloudfront_frontend_distribution_id)
-          
-          # Escreve o arquivo de configuração contendo a API e parâmetros do Cognito
-          echo "{\"api_base_url\": \"$API_ENDPOINT\", \"cognito_user_pool_id\": \"$COGNITO_USER_POOL_ID\", \"cognito_client_id\": \"$COGNITO_CLIENT_ID\", \"aws_region\": \"us-east-1\"}" > ../src/frontend/config.json
-          
-          aws s3 sync ../src/frontend/ s3://$FRONTEND_BUCKET/ --delete
-          
-          # Invalida o cache do CloudFront para forçar o carregamento do novo frontend imediatamente
-          aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_DIST_ID --paths "/*"
-        working-directory: ./terraform
+      - name: Terraform Destroy
+        run: terraform destroy -auto-approve

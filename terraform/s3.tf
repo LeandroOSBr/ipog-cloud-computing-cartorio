@@ -21,7 +21,7 @@ resource "aws_s3_bucket_cors_configuration" "raw_cors" {
 resource "aws_s3_bucket" "imultavel" {
   bucket              = "${var.project_name}-imultavel-${random_id.bucket_suffix.hex}"
   object_lock_enabled = true
-  force_destroy       = false # Não permite deletar o bucket se houver objetos bloqueados pelo Object Lock
+  force_destroy       = true # Permite deletar o bucket se houver objetos no cleanup
 }
 
 # O Versionamento é obrigatório para o funcionamento do S3 Object Lock
